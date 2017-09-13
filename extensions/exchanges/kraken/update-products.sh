@@ -28,15 +28,19 @@ kraken.api('Assets', null, function(error, data) {
 
     mapping = data.result
 
-    kraken.api('AssetPairs', null, function(error, data) {
-      if (error) {
-        console.log(error)
-        process.exit(1)
-      } else {
-        Object.keys(data.result).forEach(function(result) {
-          if (!result.match('\.d')) {
-            addProduct(data.result[result].base, data.result[result].quote, data.result[result].altname)
-          }
+        kraken.api('AssetPairs', null, function (error, data) {
+            if (error) {
+                console.log(error)
+                process.exit(1)
+            } else {
+                Object.keys(data.result).forEach(function (result) {
+                    addProduct(data.result[result].base, data.result[result].quote, data.result[result].altname)
+                })
+                var target = require('path').resolve(__dirname, 'products.json')
+                require('fs').writeFileSync(target, JSON.stringify(products, null, 2))
+                console.log('wrote', target)
+                process.exit()
+            }
         })
         var target = require('path').resolve(__dirname, 'products.json')
         require('fs').writeFileSync(target, JSON.stringify(products, null, 2))
