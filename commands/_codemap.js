@@ -11,6 +11,7 @@ module.exports = {
   'trade': require('./trade'),
   'buy': require('./buy'),
   'sell': require('./sell'),
+  'arbitrage': require('./arbitrage'),
 
   'list[20]': '#commands.list-selectors',
   'list[30]': '#commands.list-strategies',
@@ -20,5 +21,6 @@ module.exports = {
   'list[65]': '#commands.balance',
   'list[70]': '#commands.trade',
   'list[80]': '#commands.buy',
-  'list[90]': '#commands.sell'
+  'list[90]': '#commands.sell',
+  'list[95]': '#commands.arbitrage'
 }

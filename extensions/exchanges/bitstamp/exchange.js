@@ -1,6 +1,5 @@
 var Bitstamp = require('bitstamp')
-  , path = require('path')
-  , Pusher = require('pusher-js/node')
+  , path = require('path') , Pusher = require('pusher-js/node')
   , colors = require('colors')
   , n = require('numbro')
 
@@ -23,19 +22,24 @@ var wsOpts = {
 // t:he command line arguments
 args.forEach(function(value) {
   if (value.toLowerCase().match(/bitstamp/)) {
-    var p = value.split('.')[1]
-    var prod = p.split('-')[0] + p.split('-')[1]
-    var pair = prod.toLowerCase()
-    if (!wsOpts.pairOk) {
-      if (pair !== 'btcusd') {
-        wsOpts.trades.channel = 'live_trades_' + pair
-        wsOpts.quotes.channel = 'order_book_' + pair
-      }
-      wsOpts.currencyPair = pair
-      wsOpts.pairOk = true
-    }
+    selectorToPair(value);
   }
 })
+
+function selectorToPair(selector) {
+  const  p = selector.split('.')[1];
+  const prod = p.split('-')[0] + p.split('-')[1];
+  const pair = prod.toLowerCase();
+  if (!wsOpts.pairOk) {
+    if (pair !== 'btcusd') {
+      wsOpts.trades.channel = 'live_trades_' + pair
+      wsOpts.quotes.channel = 'order_book_' + pair
+    }
+    wsOpts.currencyPair = pair
+    wsOpts.pairOk = true
+  }
+  return pair;
+}
 
 function joinProduct (product_id) {
   return product_id.split('-')[0] + product_id.split('-')[1]
@@ -68,7 +72,6 @@ module.exports = function container (get, set, clear) {
 
     this.client = new Pusher(BITSTAMP_PUSHER_KEY, {
       encrypted: this.opts.encrypted
-      //encrypted: true
     })
 
     // bitstamp publishes all data over just 2 channels
@@ -158,7 +161,7 @@ module.exports = function container (get, set, clear) {
     if (wstrades.length > 30) wstrades.splice(0,10)
   })
   //-----------------------------------------------------
-	
+  
   function statusErr (err, body) {
     if (typeof body === 'undefined') {
       var ret = {}
@@ -184,7 +187,7 @@ module.exports = function container (get, set, clear) {
     }, to * 1000)
   }
 
-	var lastBalance = {asset: 0, currency: 0}
+  var lastBalance = {asset: 0, currency: 0}
   var orders = {}
 
   var exchange = {
@@ -231,16 +234,16 @@ module.exports = function container (get, set, clear) {
     //
 
     getBalance: function (opts, cb) {
-			var args = {
-							currency: opts.currency.toLowerCase(),
-							asset: opts.asset.toLowerCase(),
-							wait: 10
-			  }
+      var args = {
+              currency: opts.currency.toLowerCase(),
+              asset: opts.asset.toLowerCase(),
+              wait: 10
+        }
       var client = authedClient()
       client.balance(null, function (err, body) {
         body = statusErr(err,body)
         if (body.status === 'error') {
-	        return retry('getBalance', args)
+          return retry('getBalance', args)
         }
         var balance = {asset: 0, currency: 0}
         // Dirty hack to avoid engine.js bailing out when balance has 0 value
@@ -249,12 +252,12 @@ module.exports = function container (get, set, clear) {
         balance.asset = n(body[opts.asset.toLowerCase() + '_available']) + 0.000001
         balance.currency_hold = 0
         balance.asset_hold = 0
-				if (typeof balance.asset == undefined || typeof balance.currency == undefined ) {
+        if (typeof balance.asset == undefined || typeof balance.currency == undefined ) {
           console.log('Communication delay, fallback to previous balance')
-					balance = lastBalance
-				} else {
-					lastBalance = balance
-				}
+          balance = lastBalance
+        } else {
+          lastBalance = balance
+        }
         cb(null, balance)
       })
     },
@@ -265,7 +268,7 @@ module.exports = function container (get, set, clear) {
       client.cancel_order(opts.order_id, function (err, body) {
         body = statusErr(err,body)
         if (body.status === 'error') {
-	        return retry('cancelOrder', func_args, err)
+          return retry('cancelOrder', func_args, err)
         }
         cb()
       })
@@ -299,8 +302,8 @@ module.exports = function container (get, set, clear) {
           if (body.status === 'error') {
             var order = { status: 'rejected', reject_reason: 'balance' }
             return cb(null, order)
-          } else { 
-	          body.status = 'done'
+          } else {
+            body.status = 'done'
           }
           orders['~' + body.id] = body
           cb(null, body)
@@ -325,9 +328,27 @@ module.exports = function container (get, set, clear) {
           body = orders['~' + opts.order_id]
           body.status = 'done'
           body.done_reason = 'canceled'
-        } 
+        }
         cb(null, body)
       })
+    },
+
+    listenOrderbook: function(opts, cb) {
+      console.log('Listening for ' + opts.selectors);
+        const wss = opts.selectors.map(s => {
+          ws = new Bitstamp_WS({
+            channel: 'order_book_' + selectorToPair(s),
+            evType: 'data'
+          });
+          ws.selector = s;
+          return ws;
+      });
+
+      wss.forEach(w => {
+        w.on('data', data => {
+          cb(w.selector, data.bids[0][0], data.asks[0][0]);
+        })
+      });
     },
 
     // return the property used for range querying.

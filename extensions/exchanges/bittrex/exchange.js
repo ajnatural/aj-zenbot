@@ -295,6 +295,25 @@ module.exports = function container(get, set, clear) {
       })
     },
 
+    listenOrderbook(opts, cb) {
+      const markets = opts.selectors.map(s => {
+        const pair = s.split('.')[1];
+        return pair.split('-')[1] + '-' + pair.split('-')[0];
+      });
+
+      const ws = bittrex_public.websockets.subscribe(markets, data => {
+        if (data.M === 'updateExchangeState') {
+          data.A.forEach(d => {
+            const bid = d.Buys.filter(b => b.Type != 1)[0].Rate;
+            const ask = d.Sells.filter(s => s.Type != 1)[0].Rate;
+            if (bid && ask) {
+              cb('bittrex.' + joinProduct(d.MarketName),bid, ask);
+            }
+          });
+        }
+      });
+    },
+
     // return the property used for range querying.
     getCursor: function (trade) {
       return Math.floor((trade.time || trade) / 1000)
