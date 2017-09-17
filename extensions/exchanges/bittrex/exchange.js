@@ -296,6 +296,7 @@ module.exports = function container(get, set, clear) {
     },
 
     listenOrderbook(opts, cb) {
+      console.log('Listening for ' + opts.selectors);
       const markets = opts.selectors.map(s => {
         const pair = s.split('.')[1];
         return pair.split('-')[1] + '-' + pair.split('-')[0];

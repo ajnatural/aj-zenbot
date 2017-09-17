@@ -5,21 +5,7 @@ var Bitstamp = require('bitstamp')
 
 var args = process.argv
 
-var wsOpts = {
-  encrypted: true,
-  pairOk: false,
-  currencyPair: 'btcusd',
-  trades: {evType: 'trade', channel: 'live_trades'},
-  quotes: {evType: 'data', channel: 'order_book'}
-}
 
-// The use of bitstamp-ws  requires that
-// Knowledge of the asset/currency pair
-// before the first call for a trade
-// As zenbot dont returns the currency pair
-// before the first trade is requested
-// it has been neccessary to get it from
-// t:he command line arguments
 args.forEach(function(value) {
   if (value.toLowerCase().match(/bitstamp/)) {
     selectorToPair(value);
@@ -30,14 +16,6 @@ function selectorToPair(selector) {
   const  p = selector.split('.')[1];
   const prod = p.split('-')[0] + p.split('-')[1];
   const pair = prod.toLowerCase();
-  if (!wsOpts.pairOk) {
-    if (pair !== 'btcusd') {
-      wsOpts.trades.channel = 'live_trades_' + pair
-      wsOpts.quotes.channel = 'order_book_' + pair
-    }
-    wsOpts.currencyPair = pair
-    wsOpts.pairOk = true
-  }
   return pair;
 }
 
@@ -59,16 +37,16 @@ module.exports = function container (get, set, clear) {
   //-----------------------------------------------------
   //  The websocket functions
   //
-  var BITSTAMP_PUSHER_KEY = 'de504dc5763aeef9ff52'
+  const BITSTAMP_PUSHER_KEY = 'de504dc5763aeef9ff52'
 
   var Bitstamp_WS = function(opts) {
-    if (opts) {
-      this.opts = opts
-    } else {
-      this.opts = {
-        encrypted: true,
-      }
+    this.opts = {
+      encrypted: true,
+      currencyPair: 'btcusd',
+      trades: {evType: 'trade', channel: 'live_trades'},
+      quotes: {evType: 'data', channel: 'order_book'}
     }
+    Object.assign(this.opts, opts);
 
     this.client = new Pusher(BITSTAMP_PUSHER_KEY, {
       encrypted: this.opts.encrypted
@@ -81,7 +59,24 @@ module.exports = function container (get, set, clear) {
       data: false
     }
 
+    this.subscribe = function() {
+      this.client.subscribe(this.opts.trades.channel)
+      this.client.bind(this.opts.trades.evType, this.broadcast(this.opts.trades.evType))
+      this.client.subscribe(this.opts.quotes.channel)
+      this.client.bind(this.opts.quotes.evType, this.broadcast(this.opts.quotes.evType))
+    }
+
+    this.broadcast = function(name) {
+      if(this.bound[name])
+        return function noop() {}
+      this.bound[name] = true
+      return function(e) {
+        this.emit(name, e)
+      }.bind(this)
+    }
+
     this.subscribe()
+
   }
 
   Bitstamp.prototype.tradeDaily = function(direction, market, amount, price, callback) {
@@ -103,23 +98,6 @@ module.exports = function container (get, set, clear) {
   util.inherits(Bitstamp_WS, EventEmitter)
 
 
-  Bitstamp_WS.prototype.subscribe = function() {
-    if (wsOpts.pairOk) {
-      this.client.subscribe(wsOpts.trades.channel)
-      this.client.bind(wsOpts.trades.evType, this.broadcast(wsOpts.trades.evType))
-      this.client.subscribe(wsOpts.quotes.channel)
-      this.client.bind(wsOpts.quotes.evType, this.broadcast(wsOpts.quotes.evType))
-    }
-  }
-
-  Bitstamp_WS.prototype.broadcast = function(name) {
-    if(this.bound[name])
-      return function noop() {}
-    this.bound[name] = true
-    return function(e) {
-      this.emit(name, e)
-    }.bind(this)
-  }
   // Placeholders
   var wsquotes = {bid: 0, ask: 0}
   var wstrades =
@@ -134,12 +112,12 @@ module.exports = function container (get, set, clear) {
   ]
 
   var wsTrades = new Bitstamp_WS({
-    channel: wsOpts.trades.channel,
+    channel: 'live_trades',
     evType: 'trade'
   })
 
   var wsQuotes = new Bitstamp_WS({
-    channel: wsOpts.quotes.channel,
+    channel: 'order_book',
     evType: 'data'
   })
 
@@ -209,21 +187,15 @@ module.exports = function container (get, set, clear) {
 
     getTrades: function (opts, cb) {
       var args = {
-        wait: 2,   // Seconds
-        product_id: wsOpts.currencyPair
+        wait: 2   // Seconds
       }
       if (typeof wstrades.time == undefined) return retry('getTrades', args)
-      var t = wstrades
-      var trades = t.map(function (trade) {
-        return (trade)
-      })
-      cb(null, trades)
+      cb(null, wstrades)
     },
 
     getQuote: function (opts, cb) {
       var args = {
-        wait: 2,   // Seconds
-        currencyPair: wsOpts.currencyPair
+        wait: 2   // Seconds
       }
       if (typeof wsquotes.bid == undefined) return retry('getQuote', args )
       cb(null, wsquotes)
@@ -336,10 +308,10 @@ module.exports = function container (get, set, clear) {
     listenOrderbook: function(opts, cb) {
       console.log('Listening for ' + opts.selectors);
         const wss = opts.selectors.map(s => {
-          ws = new Bitstamp_WS({
+          ws = new Bitstamp_WS({quotes: {
             channel: 'order_book_' + selectorToPair(s),
             evType: 'data'
-          });
+          }});
           ws.selector = s;
           return ws;
       });
