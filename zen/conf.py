@@ -1,7 +1,7 @@
 import random
 
 selectors = {
-    'ETH-USDT': ['poloniex.ETH-USDT'],
+    'CUR-USDT': ['poloniex.DASH-USDT'],
 }
 
 partitions=2
