@@ -53,9 +53,6 @@ module.exports = function container (get, set, clear) {
                   return p.exchange + '.' + p.asset + '-' + p.currency;
                 })
               }, (selector, bid, ask) => {
-                console.log(selector);
-                console.log(bid);
-                console.log(ask);
                 const arr = selector.split('.');
                 const exchange = arr[0];
                 const pair = arr[1].split('-');
@@ -81,7 +78,7 @@ module.exports = function container (get, set, clear) {
             })
 
             function calcSpreads() {
-              console.log('Calculating spreads on ' + prices.map(e => e.selector));
+              console.log('\n---Calculating spreads on ' + prices.map(e => e.selector) + ' ---');
               const grouped = _.groupBy(prices, 'id');
 
               Object.keys(grouped).forEach(p => {
@@ -118,10 +115,10 @@ module.exports = function container (get, set, clear) {
               });
 
               const sorted = _.sortBy(_.flatten(Object.values(grouped)), e => -e.spread);
-              const logs = sorted.map(e => {
+              const logs = sorted.filter(e => e.spread >= 0.001).map(e => {
                 return `${e.spread} on buy ${e.buy_price.selector} (${e.buy_price.bid}) and sell ${e.sell_price.selector} (${e.sell_price.ask})`;
               });
-              //console.log(logs.join('\n'));
+              console.log(logs.join('\n'));
             }
 
          })

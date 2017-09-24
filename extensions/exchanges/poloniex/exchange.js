@@ -3,6 +3,7 @@ var Poloniex = require('poloniex.js')
   , moment = require('moment')
   , n = require('numbro')
   , colors = require('colors')
+  , autobahn = require('autobahn')
 
 module.exports = function container (get, set, clear) {
   var c = get('conf')
@@ -63,11 +64,11 @@ module.exports = function container (get, set, clear) {
       }
       if (args.start && !args.end) {
         // add 2 hours
-        args.end = args.start + 7200
+        args.end = args.start + 7200 * 6
       }
       else if (args.end && !args.start) {
         // subtract 2 hours
-        args.start = args.end - 7200
+        args.start = args.end - 7200 * 6
       }
 
       client._public('returnTradeHistory', args, function (err, body) {
@@ -255,6 +256,22 @@ module.exports = function container (get, set, clear) {
           cb(null, order)
         })
       })
+    },
+
+    listenOrderbook(opts, cb) {
+      console.log('Listening for ' + opts.selectors);
+      const client = publicClient()
+      const products = opts.selectors.map(e => e.split('.')[1]).map(joinProduct);
+      setInterval(() => {
+        client.returnTicker((err, data) => {
+          prices = products.forEach(e => {
+            p = data[e];
+            const arr = e.split('_');
+            const selector = 'poloniex.' + arr[1] + '-' + arr[0];
+            cb(selector, p.highestBid, p.lowestAsk);
+          });
+        });
+      }, 2200);
     },
 
     // return the property used for range querying.

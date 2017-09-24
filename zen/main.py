@@ -27,17 +27,18 @@ def main(instrument, days, popsize, strategy='trend_ema'):
 
 
 if __name__ == '__main__':
-    INSTRUMENT = sys.argv[1]
-    TOTAL_DAYS = int(sys.argv[2])
+    instrument = sys.argv[1]
+    total_days = int(sys.argv[2])
     try:
         popsize = int(sys.argv[3])
     except:
         popsize = 10
+
     try:
         strategy = sys.argv[4]
     except:
         strategy = 'trend_ema'
-    print(colored("MAKE SURE YOU RUN fab backfill_local:<days>", 'red'))
-    print(colored("otherwise it's all crap", 'red'))
-    res = main(INSTRUMENT, TOTAL_DAYS, popsize, strategy)
+
+    print ("{} {} {} {}".format(instrument, total_days, popsize, strategy))
+    res = main(instrument, total_days, popsize, strategy)
     print(res)

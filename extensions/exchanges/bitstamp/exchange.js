@@ -111,15 +111,15 @@ module.exports = function container (get, set, clear) {
     }
   ]
 
-  var wsTrades = new Bitstamp_WS({
+  var wsTrades = new Bitstamp_WS({trades: {
     channel: 'live_trades',
     evType: 'trade'
-  })
+  }})
 
-  var wsQuotes = new Bitstamp_WS({
+  var wsQuotes = new Bitstamp_WS({quotes: {
     channel: 'order_book',
     evType: 'data'
-  })
+  }})
 
   wsQuotes.on('data', function(data) {
     wsquotes = {
@@ -307,7 +307,7 @@ module.exports = function container (get, set, clear) {
 
     listenOrderbook: function(opts, cb) {
       console.log('Listening for ' + opts.selectors);
-        const wss = opts.selectors.map(s => {
+      const wss = opts.selectors.map(s => {
           ws = new Bitstamp_WS({quotes: {
             channel: 'order_book_' + selectorToPair(s),
             evType: 'data'
@@ -319,6 +319,24 @@ module.exports = function container (get, set, clear) {
       wss.forEach(w => {
         w.on('data', data => {
           cb(w.selector, data.bids[0][0], data.asks[0][0]);
+        })
+      });
+    },
+
+    listenTicker: function(opts, cb) {
+      console.log('Listening for ' + opts.selectors);
+        const wss = opts.selectors.map(s => {
+          ws = new Bitstamp_WS({trades: {
+            channel: 'live_trades_' + selectorToPair(s),
+            evType: 'trade'
+          }});
+          ws.selector = s;
+          return ws;
+      });
+
+      wss.forEach(w => {
+        w.on('trade', data => {
+          cb(w.selector, data.price, data.price);
         })
       });
     },

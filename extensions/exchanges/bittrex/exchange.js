@@ -3,16 +3,15 @@ var bittrex_authed = require('node.bittrex.api'),
     path = require('path'),
     moment = require('moment'),
     n = require('numbro'),
-    colors = require('colors')
+    colors = require('colors'),
+    _ = require('lodash')
 
 
 /**
  ** Bittrex API
- ** 
  ** please note: unfortunately getmarkethistory does not work based on time
  ** this means that we cannot do any backfilles, but paper trading should be fine
  ** https://github.com/n0mad01/node.bittrex.api/issues/17
- **
  **/
 module.exports = function container(get, set, clear) {
   var c = get('conf')
@@ -302,14 +301,59 @@ module.exports = function container(get, set, clear) {
         return pair.split('-')[1] + '-' + pair.split('-')[0];
       });
 
+      /*
+       * We need to buffer because each WS notification doesn't include
+       * many orders, and sometimes we get weird orders at random prices.
+       */
+      buffer_size = 50;
+      bids = {};
+      asks = {};
       const ws = bittrex_public.websockets.subscribe(markets, data => {
         if (data.M === 'updateExchangeState') {
           data.A.forEach(d => {
-            const bid = d.Buys.filter(b => b.Type != 1)[0].Rate;
-            const ask = d.Sells.filter(s => s.Type != 1)[0].Rate;
-            if (bid && ask) {
-              cb('bittrex.' + joinProduct(d.MarketName),bid, ask);
+            const selector = 'bittrex.' + joinProduct(d.MarketName);
+            if (!bids[selector]) {
+              bids[selector] = [];
             }
+
+            if (!asks[selector]) {
+              asks[selector] = [];
+            }
+
+            bids[selector] = bids[selector].concat(d.Buys);
+            asks[selector] = asks[selector].concat(d.Sells);
+
+            bids[selector] = bids[selector].slice(-buffer_size);
+            asks[selector] = asks[selector].slice(-buffer_size);
+
+            const bid = _.orderBy(bids[selector], 'Rate', 'desc')[0].Rate;
+            const ask = _.orderBy(asks[selector], 'Rate', 'asc')[0].Rate;
+
+            if (bid && ask) {
+              cb(selector, bid, ask);
+            }
+          });
+        }
+      });
+    },
+
+    listenTicker(opts, cb) {
+      console.log('Listening for ' + opts.selectors);
+      const markets = opts.selectors.map(s => {
+        const pair = s.split('.')[1];
+        return pair.split('-')[1] + '-' + pair.split('-')[0];
+      });
+
+      const ws = bittrex_public.websockets.listen(data => {
+        if (data.M === 'updateSummaryState') {
+          data.A.forEach(data_for => {
+            data_for.Deltas.forEach(delta => {
+              console.log(delta.MarketName);
+              console.log(markets);
+              if (markets.includes(delta.MarketName)) {
+                cb('bittrex.' + joinProduct(delta.MarketName), delta.Bid, delta.Ask);
+              }
+            });
           });
         }
       });

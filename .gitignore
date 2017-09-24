@@ -21,3 +21,6 @@ sim_result*
 backtesting_*
 models/*.json
 models/*.html
+__pycache__/
+zen/__pycache__/
+zen/evolution/__pycache__/

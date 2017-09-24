@@ -1,19 +1,13 @@
 import random
 
-
-
-
 selectors = {
-    'BTC-CUR': ['gdax.BTC-USD', 'gdax.BTC-EUR', 'gdax.BTC-GBP'],
-    'ETH-BTC': ['gdax.ETH-BTC'],
-    'ETH-EUR': ['gdax.ETH-EUR'],
-    'ETH-USD': ['gdax.ETH-USD'],
-    'ETH-CUR': ['gdax.ETH-USD','gdax.ETH-EUR'],
+    'ETH-USDT': ['poloniex.ETH-USDT'],
 }
+
 partitions=2
 selectivity = 0.3
 
-runid=random.randint(1000,9999)
+runid=random.randint(1000,999999)
 sigma = 20
 indpb  = 0.3
 mutpb = 0.3
